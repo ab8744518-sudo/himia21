@@ -1,198 +1,209 @@
 import streamlit as st
-import random
+import base64
+from PIL import Image
+import io
 
 # Настройка страницы
 st.set_page_config(page_title="Химия 10", layout="wide")
 
-# CSS для полной анимации
+# Создаем изображения пробирок в base64
+def create_test_tube_base64(color="#4ecdc4"):
+    # Создаем простое изображение пробирки с помощью PIL
+    img = Image.new('RGBA', (100, 200), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(img)
+    
+    # Рисуем пробирку
+    draw.rectangle([30, 50, 70, 180], fill=(200, 230, 255, 200), outline=(0, 102, 204, 255), width=3)
+    draw.rectangle([40, 30, 60, 50], fill=(200, 230, 255, 200), outline=(0, 102, 204, 255), width=3)
+    
+    # Рисуем жидкость
+    r, g, b = tuple(int(color[i:i+2], 16) for i in (1, 3, 5))
+    draw.rectangle([31, 100, 69, 179], fill=(r, g, b, 180))
+    
+    # Сохраняем в base64
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode()
+
+# Но лучше используем SVG для анимации
+test_tube_svg = """
+<svg width="100" height="200" viewBox="0 0 100 200">
+    <!-- Пробирка -->
+    <rect x="30" y="50" width="40" height="130" rx="5" fill="rgba(230,247,255,0.9)" stroke="#0066cc" stroke-width="2"/>
+    <rect x="40" y="30" width="20" height="20" rx="5" fill="rgba(230,247,255,0.9)" stroke="#0066cc" stroke-width="2" stroke-bottom="none"/>
+    
+    <!-- Жидкость -->
+    <rect id="liquid" x="31" y="100" width="38" height="80" rx="4" fill="{color}" opacity="0.8">
+        <animate attributeName="height" values="80;90;80" dur="2s" repeatCount="indefinite"/>
+    </rect>
+    
+    <!-- Пузырьки -->
+    <circle cx="50" cy="170" r="3" fill="rgba(255,255,255,0.7)">
+        <animate attributeName="cy" from="170" to="100" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" from="1" to="0" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="55" cy="160" r="2" fill="rgba(255,255,255,0.7)">
+        <animate attributeName="cy" from="160" to="90" dur="2.5s" repeatCount="indefinite" begin="0.5s"/>
+        <animate attributeName="opacity" from="1" to="0" dur="2.5s" repeatCount="indefinite" begin="0.5s"/>
+    </circle>
+</svg>
+"""
+
+# HTML с реальной анимацией пробирок
 st.markdown("""
 <style>
-    /* Контейнер для анимации */
     .lab-animation {
-        width: 100%;
-        height: 300px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 400px;
+        background: linear-gradient(180deg, #2c3e50 0%, #1a1a2e 100%);
+        border-radius: 20px;
         position: relative;
-        margin: 30px 0;
         overflow: hidden;
-        background: linear-gradient(180deg, #1a237e 0%, #283593 50%, #3949ab 100%);
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        margin: 30px 0;
     }
     
-    /* Лабораторный стол */
     .lab-table {
         position: absolute;
         bottom: 0;
         width: 100%;
         height: 80px;
-        background: linear-gradient(to top, #5d4037, #795548);
-        border-top: 5px solid #4e342e;
+        background: linear-gradient(to top, #3e2723, #5d4037);
+        border-top: 10px solid #4e342e;
     }
     
-    /* Стойка для пробирок */
-    .test-tube-rack {
+    .tube-rack {
         position: absolute;
         bottom: 80px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 400px;
-        height: 50px;
+        width: 500px;
+        height: 40px;
         background: #8d6e63;
         border-radius: 10px 10px 0 0;
         display: flex;
         justify-content: space-around;
-        align-items: center;
-        padding: 0 20px;
+        padding-top: 10px;
     }
     
-    /* Отверстия в стойке */
-    .rack-hole {
-        width: 70px;
-        height: 70px;
+    .tube-hole {
+        width: 60px;
+        height: 60px;
         background: #6d4c41;
         border-radius: 50%;
-        position: relative;
-        z-index: 1;
     }
     
-    /* Пробирка */
-    .test-tube {
-        width: 50px;
-        height: 150px;
+    .tube-container {
         position: absolute;
-        bottom: 130px;
-        transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
-        z-index: 2;
+        bottom: 140px;
+        transition: all 1s ease;
+        filter: drop-shadow(0 5px 15px rgba(0,0,0,0.3));
+    }
+    
+    .tube {
+        width: 100px;
+        height: 200px;
+        position: relative;
         cursor: pointer;
+        transition: transform 0.5s;
+    }
+    
+    .tube:hover {
+        transform: scale(1.05);
     }
     
     .tube-body {
-        width: 100%;
-        height: 120px;
-        background: linear-gradient(to right, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
-        border-radius: 10px 10px 25px 25px;
+        position: absolute;
+        width: 40px;
+        height: 130px;
+        background: linear-gradient(90deg, rgba(255,255,255,0.8), rgba(255,255,255,0.6));
         border: 3px solid #1565c0;
-        position: relative;
+        border-radius: 0 0 20px 20px;
+        bottom: 0;
+        left: 30px;
         overflow: hidden;
     }
     
     .tube-neck {
-        width: 30px;
-        height: 30px;
-        background: linear-gradient(to right, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
         position: absolute;
-        top: -30px;
-        left: 10px;
+        width: 20px;
+        height: 30px;
+        background: linear-gradient(90deg, rgba(255,255,255,0.8), rgba(255,255,255,0.6));
         border: 3px solid #1565c0;
         border-bottom: none;
-        border-radius: 15px 15px 0 0;
+        border-radius: 10px 10px 0 0;
+        bottom: 130px;
+        left: 40px;
     }
     
-    /* Жидкость в пробирке */
-    .liquid {
+    .tube-liquid {
         position: absolute;
-        bottom: 0;
         width: 100%;
-        border-radius: 0 0 22px 22px;
-        transition: height 1s ease, background 0.5s ease;
+        bottom: 0;
+        border-radius: 0 0 17px 17px;
+        transition: height 1s, background 0.5s;
     }
     
-    /* Бурлящая жидкость */
-    .bubbling-liquid {
-        animation: bubble 2s infinite;
+    .bubbles {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
     }
     
-    @keyframes bubble {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-5px); }
-    }
-    
-    /* Пузырьки */
     .bubble {
         position: absolute;
-        background: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.7);
         border-radius: 50%;
-        animation: floatUp linear infinite;
+        animation: floatUp linear forwards;
     }
     
     @keyframes floatUp {
-        to { transform: translateY(-150px); opacity: 0; }
+        to {
+            transform: translateY(-100px);
+            opacity: 0;
+        }
     }
     
-    /* Стрелка реакции */
     .reaction-arrow {
         position: absolute;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
         font-size: 60px;
         color: #ff9800;
         text-shadow: 0 0 20px #ff9800;
+        z-index: 10;
         animation: pulse 1.5s infinite;
-        z-index: 3;
     }
     
     @keyframes pulse {
-        0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        50% { opacity: 0.5; transform: translate(-50%, -50%) scale(1.2); }
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.2); }
     }
     
-    /* Анимированная реакция */
-    .reaction-flash {
+    .chemical-formula {
         position: absolute;
+        top: 20px;
         left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        width: 200px;
-        height: 200px;
-        background: radial-gradient(circle, rgba(255,152,0,0.8) 0%, rgba(255,152,0,0) 70%);
-        border-radius: 50%;
-        animation: flash 0.5s;
-        z-index: 1;
+        transform: translateX(-50%);
+        font-size: 32px;
+        font-family: 'Courier New', monospace;
+        color: #4fc3f7;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px 20px;
+        border-radius: 10px;
+        z-index: 10;
+        animation: glow 2s infinite;
     }
     
-    @keyframes flash {
-        0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
-        100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+    @keyframes glow {
+        0%, 100% { text-shadow: 0 0 10px #4fc3f7; }
+        50% { text-shadow: 0 0 20px #4fc3f7; }
     }
     
-    /* Дым/пар */
-    .smoke {
-        position: absolute;
-        background: rgba(255, 255, 255, 0.3);
-        border-radius: 50%;
-        animation: smokeFloat 4s infinite;
-    }
-    
-    @keyframes smokeFloat {
-        0% { transform: translateY(0) scale(1); opacity: 0; }
-        20% { opacity: 0.8; }
-        100% { transform: translateY(-200px) scale(2); opacity: 0; }
-    }
-    
-    /* Молекулы */
-    .molecule {
-        position: absolute;
-        font-size: 20px;
-        font-weight: bold;
-        color: #e3f2fd;
-        text-shadow: 0 0 10px #2196f3;
-        animation: moleculeFloat 6s infinite linear;
-    }
-    
-    @keyframes moleculeFloat {
-        0% { transform: translateY(100px) rotate(0deg); opacity: 0; }
-        10% { opacity: 1; }
-        90% { opacity: 1; }
-        100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
-    }
-    
-    /* Кнопки управления */
     .control-panel {
         display: flex;
         gap: 10px;
-        margin: 20px 0;
         justify-content: center;
+        margin: 20px 0;
+        flex-wrap: wrap;
     }
     
     .control-btn {
@@ -201,384 +212,259 @@ st.markdown("""
         color: white;
         border: none;
         border-radius: 25px;
-        cursor: pointer;
         font-weight: bold;
+        cursor: pointer;
         transition: all 0.3s;
+        min-width: 150px;
     }
     
     .control-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 5px 15px rgba(0,0,0,0.3);
     }
-    
-    /* Информационная панель */
-    .info-panel {
-        background: rgba(30, 30, 60, 0.9);
-        padding: 20px;
-        border-radius: 10px;
-        margin: 20px 0;
-        border-left: 5px solid #4ecdc4;
-    }
-    
-    /* Карточки уроков */
-    .lesson-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 10px;
-        padding: 20px;
-        color: white;
-        text-align: center;
-        transition: all 0.3s;
-        margin: 10px 0;
-        border: none;
-        cursor: pointer;
-    }
-    
-    .lesson-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    }
 </style>
-""", unsafe_allow_html=True)
 
-# JavaScript для интерактивной анимации
-animation_js = """
+<div class="lab-animation" id="labAnimation">
+    <div class="lab-table"></div>
+    <div class="tube-rack">
+        <div class="tube-hole"></div>
+        <div class="tube-hole"></div>
+        <div class="tube-hole"></div>
+    </div>
+    
+    <div class="chemical-formula" id="formulaDisplay">CH₄ + 2O₂ → CO₂ + 2H₂O</div>
+    
+    <!-- Левая пробирка -->
+    <div class="tube-container" id="leftTube" style="left: 150px;">
+        <div class="tube">
+            <div class="tube-body">
+                <div class="tube-liquid" id="leftLiquid" style="height: 80%; background: linear-gradient(to top, #4ecdc4, #26a69a);"></div>
+            </div>
+            <div class="tube-neck"></div>
+        </div>
+    </div>
+    
+    <!-- Стрелка реакции -->
+    <div class="reaction-arrow" id="reactionArrow" style="left: 450px;">⚗️</div>
+    
+    <!-- Центральная пробирка -->
+    <div class="tube-container" id="centerTube" style="left: 450px; opacity: 0;">
+        <div class="tube">
+            <div class="tube-body">
+                <div class="tube-liquid" id="centerLiquid" style="height: 0%; background: linear-gradient(to top, #ff6b6b, #ee5a24);"></div>
+            </div>
+            <div class="tube-neck"></div>
+        </div>
+    </div>
+    
+    <!-- Правая пробирка -->
+    <div class="tube-container" id="rightTube" style="left: 750px;">
+        <div class="tube">
+            <div class="tube-body">
+                <div class="tube-liquid" id="rightLiquid" style="height: 80%; background: linear-gradient(to top, #45b7d1, #2e86de);"></div>
+            </div>
+            <div class="tube-neck"></div>
+        </div>
+    </div>
+</div>
+
 <script>
-// Цвета для разных уроков
+// Цвета для уроков
 const lessonColors = {
-    1: '#4ecdc4', 2: '#ff6b6b', 3: '#45b7d1', 4: '#96ceb4', 5: '#feca57',
-    6: '#ff9ff3', 7: '#54a0ff', 8: '#5f27cd', 9: '#00d2d3', 10: '#ff9f43',
-    11: '#341f97', 12: '#01a3a4', 13: '#8395a7', 14: '#ee5a24', 15: '#a29bfe',
-    16: '#fd79a8', 17: '#00cec9', 18: '#6c5ce7', 19: '#fdcb6e'
+    1: ['#4ecdc4', '#26a69a'],  // Алкандар
+    2: ['#ff6b6b', '#ee5a24'],  // Алкендер
+    3: ['#45b7d1', '#2e86de'],  // Алкиндер
+    4: ['#96ceb4', '#66bb6a'],  // Спирттер
+    5: ['#feca57', '#ffa502'],  // Фенолдар
+    6: ['#ff9ff3', '#f368e0'],  // Альдегидтер
+    7: ['#54a0ff', '#2e86de'],  // Кетондар
+    8: ['#5f27cd', '#341f97'],  // Салыстыру
+    9: ['#00d2d3', '#01a3a4'],  // Қышқылдар
+    10: ['#ff9f43', '#ff7f00']  // Эфирлер
 };
 
-// Формулы для разных уроков
+// Формулы для уроков
 const lessonFormulas = {
-    1: ['CH₄', 'C₂H₆', 'C₃H₈'],
-    2: ['C₂H₄', 'C₃H₆'],
-    3: ['C₂H₂', 'C₃H₄'],
-    4: ['CH₃OH', 'C₂H₅OH'],
-    5: ['C₆H₅OH'],
-    6: ['HCHO', 'CH₃CHO'],
-    7: ['CH₃COCH₃'],
-    8: ['CH₄ → C₂H₄ → C₂H₂'],
-    9: ['HCOOH', 'CH₃COOH'],
-    10: ['CH₃COOCH₃'],
-    11: ['CH₃NH₂'],
-    12: ['NH₂-CH₂-COOH'],
-    13: ['CH₃Cl'],
-    14: ['CH₃NO₂'],
-    15: ['C₆H₅SO₃H'],
-    16: ['R-CH₂OH → R-CHO'],
-    17: ['CH₂=CH₂ + H₂'],
-    18: ['R-X → R-OH'],
-    19: ['nCH₂=CH₂ → полимер']
+    1: ['CH₄ + 2O₂ → CO₂ + 2H₂О', '2C₂H₆ + 7O₂ → 4CO₂ + 6H₂О'],
+    2: ['C₂H₄ + H₂ → C₂H₆', 'CH₂=CH₂ + Br₂ → Br-CH₂-CH₂-Br'],
+    3: ['2C₂H₂ + 5O₂ → 4CO₂ + 2H₂О', 'HC≡CH + 2H₂ → CH₃-CH₃'],
+    4: ['CH₃OH + Na → CH₃ONa + ½H₂', 'C₂H₅OH + 3O₂ → 2CO₂ + 3H₂О'],
+    5: ['C₆H₅OH + NaOH → C₆H₅ONa + H₂О', 'C₆H₅OH + 3Br₂ → C₆H₂Br₃OH + 3HBr'],
+    6: ['HCHO + Ag₂O → HCOOH + 2Ag', 'CH₃CHO + 2[Ag(NH₃)₂]OH → CH₃COONH₄ + 2Ag + 3NH₃ + H₂О'],
+    7: ['CH₃COCH₃ + H₂ → CH₃CHOHCH₃', '2CH₃COCH₃ → (CH₃)₂C=CHCOCH₃ + H₂О'],
+    8: ['Алкан → Алкен → Алкин', 'sp³ → sp² → sp'],
+    9: ['HCOOH + NaOH → HCOONa + H₂О', 'CH₃COOH + C₂H₅OH → CH₃COOC₂H₅ + H₂О'],
+    10: ['CH₃COOH + CH₃OH → CH₃COOCH₃ + H₂О', 'RCOOH + R\'OH → RCOOR\' + H₂О']
 };
 
 let currentLesson = 1;
-let animationActive = false;
+let isAnimating = false;
 
-// Создаем анимацию
-function createLabAnimation() {
-    const container = document.getElementById('labAnimation');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    // Создаем лабораторный стол
-    const table = document.createElement('div');
-    table.className = 'lab-table';
-    container.appendChild(table);
-    
-    // Создаем стойку для пробирок
-    const rack = document.createElement('div');
-    rack.className = 'test-tube-rack';
-    
-    // Создаем отверстия в стойке
-    for (let i = 0; i < 3; i++) {
-        const hole = document.createElement('div');
-        hole.className = 'rack-hole';
-        rack.appendChild(hole);
-    }
-    container.appendChild(rack);
-    
-    // Создаем левую пробирку
-    createTestTube(container, 'leftTube', 100, '#4ecdc4');
-    
-    // Создаем центральную пробирку
-    createTestTube(container, 'centerTube', 400, '#ff6b6b', 0.5);
-    
-    // Создаем правую пробирку
-    createTestTube(container, 'rightTube', 700, '#45b7d1');
-    
-    // Создаем стрелку реакции
-    const arrow = document.createElement('div');
-    arrow.className = 'reaction-arrow';
-    arrow.innerHTML = '⚗️';
-    arrow.id = 'reactionArrow';
-    container.appendChild(arrow);
-    
-    // Создаем информационную панель
-    const infoPanel = document.createElement('div');
-    infoPanel.className = 'info-panel';
-    infoPanel.innerHTML = `
-        <div style="text-align: center;">
-            <h3 style="color: #4ecdc4; margin: 0;">🧪 Химиялық реакция</h3>
-            <p style="color: white; margin: 10px 0;" id="reactionText">Пробиркаларды араластыру үшін түймені басыңыз</p>
-            <div style="font-size: 24px; font-family: monospace; color: #ffeb3b;" id="formulaDisplay">CH₄</div>
-        </div>
-    `;
-    container.appendChild(infoPanel);
-    
-    // Добавляем плавающие молекулы
-    for (let i = 0; i < 5; i++) {
-        createMolecule(container);
-    }
-}
-
-// Создаем пробирку
-function createTestTube(container, id, left, color, opacity = 1) {
-    const tube = document.createElement('div');
-    tube.id = id;
-    tube.className = 'test-tube';
-    tube.style.left = left + 'px';
-    tube.style.opacity = opacity;
-    
-    const tubeBody = document.createElement('div');
-    tubeBody.className = 'tube-body';
-    
-    const liquid = document.createElement('div');
-    liquid.className = 'liquid bubbling-liquid';
-    liquid.id = id + 'Liquid';
-    liquid.style.height = '80%';
-    liquid.style.background = `linear-gradient(to top, ${color}80, ${color})`;
-    
-    const tubeNeck = document.createElement('div');
-    tubeNeck.className = 'tube-neck';
-    
-    tubeBody.appendChild(liquid);
-    tube.appendChild(tubeBody);
-    tube.appendChild(tubeNeck);
-    container.appendChild(tube);
-    
-    // Добавляем пузырьки
-    addBubbles(liquid);
-    
-    return tube;
-}
-
-// Добавляем пузырьки
-function addBubbles(container) {
-    for (let i = 0; i < 8; i++) {
+// Создаем пузырьки
+function createBubbles(container, count = 10) {
+    for (let i = 0; i < count; i++) {
         setTimeout(() => {
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
             bubble.style.width = bubble.style.height = (Math.random() * 8 + 4) + 'px';
-            bubble.style.left = Math.random() * 40 + 5 + 'px';
+            bubble.style.left = Math.random() * 30 + 5 + 'px';
             bubble.style.bottom = '0';
             bubble.style.animationDuration = (Math.random() * 2 + 1) + 's';
-            bubble.style.animationDelay = (Math.random() * 1) + 's';
-            container.appendChild(bubble);
             
-            // Удаляем пузырек после анимации
+            container.querySelector('.tube-body').appendChild(bubble);
+            
             setTimeout(() => bubble.remove(), 3000);
-        }, i * 300);
+        }, i * 100);
     }
-}
-
-// Создаем молекулу
-function createMolecule(container) {
-    const molecule = document.createElement('div');
-    molecule.className = 'molecule';
-    molecule.innerHTML = ['CH₄', 'C₂H₆', 'C₃H₈', 'H₂O', 'CO₂', 'O₂'][Math.floor(Math.random() * 6)];
-    molecule.style.left = Math.random() * 90 + 5 + '%';
-    molecule.style.animationDuration = (Math.random() * 4 + 3) + 's';
-    molecule.style.animationDelay = Math.random() * 2 + 's';
-    container.appendChild(molecule);
 }
 
 // Запускаем реакцию
 function startReaction() {
-    if (animationActive) return;
-    animationActive = true;
+    if (isAnimating) return;
+    isAnimating = true;
     
     const leftTube = document.getElementById('leftTube');
     const centerTube = document.getElementById('centerTube');
     const rightTube = document.getElementById('rightTube');
     const reactionArrow = document.getElementById('reactionArrow');
     const formulaDisplay = document.getElementById('formulaDisplay');
-    const reactionText = document.getElementById('reactionText');
     
-    // Меняем формулу
-    const formulas = lessonFormulas[currentLesson] || ['CH₄'];
+    const leftLiquid = document.getElementById('leftLiquid');
+    const centerLiquid = document.getElementById('centerLiquid');
+    const rightLiquid = document.getElementById('rightLiquid');
+    
+    // Обновляем формулу
+    const formulas = lessonFormulas[currentLesson] || ['Химиялық реакция'];
     formulaDisplay.textContent = formulas[Math.floor(Math.random() * formulas.length)];
-    reactionText.textContent = 'Реакция жүруде...';
-    reactionText.style.color = '#ff9800';
     
-    // 1. Поднимаем боковые пробирки
-    leftTube.style.bottom = '230px';
+    // 1. Поднимаем пробирки
+    leftTube.style.bottom = '240px';
     leftTube.style.transform = 'rotate(-30deg)';
     
-    rightTube.style.bottom = '230px';
+    rightTube.style.bottom = '240px';
     rightTube.style.transform = 'rotate(30deg)';
     
-    // 2. Наклоняем к центру
+    // 2. Наклоняем к центру и переливаем
     setTimeout(() => {
-        leftTube.style.left = '250px';
+        leftTube.style.left = '350px';
         leftTube.style.transform = 'rotate(-60deg)';
         
         rightTube.style.left = '550px';
         rightTube.style.transform = 'rotate(60deg)';
         
         // Уменьшаем жидкость в боковых пробирках
-        document.getElementById('leftTubeLiquid').style.height = '20%';
-        document.getElementById('rightTubeLiquid').style.height = '20%';
+        leftLiquid.style.height = '20%';
+        rightLiquid.style.height = '20%';
         
-        // Увеличиваем жидкость в центральной
-        document.getElementById('centerTubeLiquid').style.height = '100%';
+        // Показываем центральную пробирку
+        centerTube.style.opacity = '1';
+        centerLiquid.style.height = '100%';
         
-        // Анимация стрелки
+        // Создаем пузырьки в центральной пробирке
+        createBubbles(centerTube, 20);
+        
+        // Анимируем стрелку
         reactionArrow.style.animation = 'pulse 0.3s infinite';
-        
-        // Создаем вспышку
-        createFlash();
     }, 1000);
     
     // 3. Возвращаем на место
     setTimeout(() => {
-        leftTube.style.bottom = '130px';
-        leftTube.style.left = '100px';
+        leftTube.style.bottom = '140px';
+        leftTube.style.left = '150px';
         leftTube.style.transform = 'rotate(0deg)';
         
-        rightTube.style.bottom = '130px';
-        rightTube.style.left = '700px';
+        rightTube.style.bottom = '140px';
+        rightTube.style.left = '750px';
         rightTube.style.transform = 'rotate(0deg)';
         
         // Восстанавливаем жидкость
         setTimeout(() => {
-            document.getElementById('leftTubeLiquid').style.height = '80%';
-            document.getElementById('rightTubeLiquid').style.height = '80%';
-            document.getElementById('centerTubeLiquid').style.height = '80%';
-            
-            // Много пузырьков
-            addBubbles(document.getElementById('centerTubeLiquid'));
-            addBubbles(document.getElementById('centerTubeLiquid'));
+            leftLiquid.style.height = '80%';
+            rightLiquid.style.height = '80%';
+            centerLiquid.style.height = '80%';
             
             // Меняем цвет центральной пробирки
-            const colors = ['#4ecdc4', '#ff6b6b', '#45b7d1', '#96ceb4', '#feca57'];
-            const newColor = colors[Math.floor(Math.random() * colors.length)];
-            document.getElementById('centerTubeLiquid').style.background = 
-                `linear-gradient(to top, ${newColor}80, ${newColor})`;
+            const colors = lessonColors[currentLesson] || ['#4ecdc4', '#26a69a'];
+            centerLiquid.style.background = `linear-gradient(to top, ${colors[0]}, ${colors[1]})`;
             
-            // Обновляем текст
-            reactionText.textContent = 'Реакция аяқталды!';
-            reactionText.style.color = '#4caf50';
+            // Больше пузырьков
+            createBubbles(centerTube, 15);
             
             // Сбрасываем анимацию стрелки
             reactionArrow.style.animation = '';
             
-            animationActive = false;
+            isAnimating = false;
         }, 500);
     }, 2000);
 }
 
-// Создаем вспышку реакции
-function createFlash() {
-    const container = document.getElementById('labAnimation');
-    const flash = document.createElement('div');
-    flash.className = 'reaction-flash';
-    container.appendChild(flash);
-    
-    setTimeout(() => flash.remove(), 500);
-}
-
-// Создаем дым
-function createSmoke() {
-    const container = document.getElementById('labAnimation');
-    for (let i = 0; i < 10; i++) {
-        setTimeout(() => {
-            const smoke = document.createElement('div');
-            smoke.className = 'smoke';
-            smoke.style.width = smoke.style.height = (Math.random() * 30 + 20) + 'px';
-            smoke.style.left = Math.random() * 80 + 10 + '%';
-            smoke.style.bottom = '150px';
-            smoke.style.animationDuration = (Math.random() * 2 + 2) + 's';
-            container.appendChild(smoke);
-            
-            setTimeout(() => smoke.remove(), 4000);
-        }, i * 200);
-    }
-}
-
-// Инициализация
-document.addEventListener('DOMContentLoaded', function() {
-    createLabAnimation();
-    
-    // Обновляем каждые 10 секунд
-    setInterval(() => {
-        if (!animationActive) {
-            startReaction();
-            createSmoke();
-        }
-    }, 10000);
-});
-
-// Функция для смены урока
+// Меняем урок
 function changeLesson(lessonId) {
     currentLesson = lessonId;
-    const color = lessonColors[lessonId] || '#4ecdc4';
+    const colors = lessonColors[lessonId] || ['#4ecdc4', '#26a69a'];
     
-    // Меняем цвет жидкостей
-    const liquids = document.querySelectorAll('.liquid');
-    liquids.forEach(liquid => {
-        liquid.style.background = `linear-gradient(to top, ${color}80, ${color})`;
-    });
+    // Меняем цвета всех пробирок
+    document.getElementById('leftLiquid').style.background = 
+        `linear-gradient(to top, ${colors[0]}, ${colors[1]})`;
+    document.getElementById('rightLiquid').style.background = 
+        `linear-gradient(to top, ${colors[0]}, ${colors[1]})`;
     
     // Обновляем формулу
-    const formulas = lessonFormulas[lessonId] || ['CH₄'];
+    const formulas = lessonFormulas[lessonId] || ['Химиялық реакция'];
     document.getElementById('formulaDisplay').textContent = formulas[0];
     
     // Запускаем реакцию
     startReaction();
 }
-</script>
-"""
 
-# Инициализация состояния
-if "current_lesson" not in st.session_state:
-    st.session_state.current_lesson = None
+// Автоматическая анимация
+setInterval(() => {
+    if (!isAnimating) {
+        startReaction();
+    }
+}, 8000);
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', function() {
+    // Создаем начальные пузырьки
+    createBubbles(document.getElementById('leftTube'), 5);
+    createBubbles(document.getElementById('rightTube'), 5);
+    
+    // Автозапуск через 2 секунды
+    setTimeout(startReaction, 2000);
+});
+</script>
+""", unsafe_allow_html=True)
 
 # Заголовок
 st.title("🧪 Органикалық химия - 10 сынып")
 st.subheader("19 сабақ | Әр сабақта 10 сұрақтан тест")
 
-# Главная анимация
-st.markdown('<div id="labAnimation" class="lab-animation"></div>', unsafe_allow_html=True)
-
-# Добавляем JavaScript
-st.markdown(animation_js, unsafe_allow_html=True)
-
-# Панель управления
+# Панель управления анимацией
 st.markdown("### 🎮 Анимацияны басқару")
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3 = st.columns(3)
 with col1:
-    if st.button("⚗️ Реакцияны бастау", use_container_width=True):
-        st.markdown("<script>startReaction(); createSmoke();</script>", unsafe_allow_html=True)
+    if st.button("⚗️ Реакцияны бастау", use_container_width=True, key="start_reaction"):
+        st.markdown("<script>startReaction();</script>", unsafe_allow_html=True)
         st.rerun()
 with col2:
-    if st.button("💨 Дым түсіру", use_container_width=True):
-        st.markdown("<script>createSmoke();</script>", unsafe_allow_html=True)
+    if st.button("🔄 Пузырьки түсіру", use_container_width=True, key="add_bubbles"):
+        st.markdown("""
+        <script>
+            createBubbles(document.getElementById('centerTube'), 20);
+            createBubbles(document.getElementById('leftTube'), 10);
+            createBubbles(document.getElementById('rightTube'), 10);
+        </script>
+        """, unsafe_allow_html=True)
         st.rerun()
 with col3:
-    if st.button("🔄 Пробиркаларды қайта орнату", use_container_width=True):
-        st.markdown("<script>createLabAnimation();</script>", unsafe_allow_html=True)
-        st.rerun()
-with col4:
-    if st.button("🎨 Түстерді өзгерту", use_container_width=True):
-        st.markdown("<script>changeLesson(Math.floor(Math.random() * 19) + 1);</script>", unsafe_allow_html=True)
+    lesson_num = st.selectbox("Сабақты таңдау", list(range(1, 11)), format_func=lambda x: f"Сабақ {x}")
+    if st.button("🎨 Түстерді өзгерту", use_container_width=True, key="change_colors"):
+        st.markdown(f"<script>changeLesson({lesson_num});</script>", unsafe_allow_html=True)
         st.rerun()
 
-# 19 уроков
+# 19 уроков (упрощенный список)
 lessons = [
     {"id": 1, "title": "Алкандар", "topic": "Қаныққан көмірсутектер", "icon": "⚗️"},
     {"id": 2, "title": "Алкендер", "topic": "Қос байланыстар", "icon": "🔗"},
@@ -590,68 +476,84 @@ lessons = [
     {"id": 8, "title": "Көмірсутектер салыстыру", "topic": "Алкан, Алкен, Алкин", "icon": "📊"},
     {"id": 9, "title": "Карбон қышқылдары", "topic": "Карбоксил тобы", "icon": "🧪"},
     {"id": 10, "title": "Эфирлер", "topic": "Сложный эфирлер", "icon": "⚖️"},
-    {"id": 11, "title": "Аминдар", "topic": "Амино тобы", "icon": "🔬"},
-    {"id": 12, "title": "Аминқышқылдар", "topic": "Аминқышқылдар", "icon": "🧬"},
-    {"id": 13, "title": "Галогентуындылар", "topic": "Галогентуындылар", "icon": "☢️"},
-    {"id": 14, "title": "Нитросоединениялар", "topic": "Нитро тобы", "icon": "💥"},
-    {"id": 15, "title": "Сульфокислоталар", "topic": "Сульфо тобы", "icon": "🌪️"},
-    {"id": 16, "title": "Тотығу реакциялары", "topic": "Тотығу", "icon": "🔥"},
-    {"id": 17, "title": "Қосылу реакциялары", "topic": "Қосылу", "icon": "➕"},
-    {"id": 18, "title": "Ауыстыру реакциялары", "topic": "Ауыстыру", "icon": "🔄"},
-    {"id": 19, "title": "Полимерлеу", "topic": "Полимерлер", "icon": "🧵"},
 ]
 
-# Меню уроков
-st.markdown("### 📚 19 сабақты таңдаңыз:")
+# Отображаем уроки
+st.markdown("### 📚 Сабақтар тізімі")
 
-cols = st.columns(3)
-for idx, lesson in enumerate(lessons):
-    with cols[idx % 3]:
+cols = st.columns(5)
+for idx, lesson in enumerate(lessons[:10]):
+    with cols[idx % 5]:
         if st.button(
-            f"{lesson['icon']} **{lesson['id']}. {lesson['title']}**\n{lesson['topic']}",
-            key=f"btn_{lesson['id']}",
+            f"{lesson['icon']}\n**{lesson['id']}. {lesson['title']}**",
+            key=f"lesson_{lesson['id']}",
             use_container_width=True
         ):
-            st.session_state.current_lesson = lesson['id']
             st.markdown(f"<script>changeLesson({lesson['id']});</script>", unsafe_allow_html=True)
+            st.session_state.current_lesson = lesson['id']
             st.rerun()
 
 # Показываем выбранный урок
-if st.session_state.current_lesson:
-    lesson = lessons[st.session_state.current_lesson - 1]
-    st.markdown(f"## {lesson['icon']} Сабақ {lesson['id']}: {lesson['title']}")
+if "current_lesson" in st.session_state:
+    lesson_id = st.session_state.current_lesson
+    lesson = lessons[lesson_id - 1] if lesson_id <= 10 else {"title": "Сабақ", "topic": "Тақырып"}
+    st.markdown(f"## {lesson['icon']} Сабақ {lesson_id}: {lesson['title']}")
     st.markdown(f"**Тақырып:** {lesson['topic']}")
-    
-    # Здесь будет тест (ваш существующий код)
 
-# Футер
+# Футер с информацией
 st.markdown("---")
 st.markdown("""
-<div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #1a237e 0%, #3949ab 100%); 
-            border-radius: 15px; color: white; margin-top: 30px;">
-    <h3>🧬 Органикалық химияның негізгі формулалары</h3>
-    <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 15px;">
-        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
-            <div style="font-size: 28px; font-family: monospace;">CH₄</div>
-            <div>Метан</div>
+<div style="text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            padding: 25px; border-radius: 15px; color: white; margin-top: 30px;">
+    <h3>🧬 Химиялық формулалар</h3>
+    <div style="display: flex; justify-content: center; gap: 25px; flex-wrap: wrap; margin: 20px 0;">
+        <div style="background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 10px;">
+            <div style="font-size: 28px; font-family: 'Courier New', monospace; font-weight: bold;">CH₄</div>
+            <div style="font-size: 14px; opacity: 0.9;">Метан</div>
         </div>
-        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
-            <div style="font-size: 28px; font-family: monospace;">C₂H₄</div>
-            <div>Этилен</div>
+        <div style="background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 10px;">
+            <div style="font-size: 28px; font-family: 'Courier New', monospace; font-weight: bold;">C₂H₄</div>
+            <div style="font-size: 14px; opacity: 0.9;">Этилен</div>
         </div>
-        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
-            <div style="font-size: 28px; font-family: monospace;">C₂H₂</div>
-            <div>Ацетилен</div>
+        <div style="background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 10px;">
+            <div style="font-size: 28px; font-family: 'Courier New', monospace; font-weight: bold;">C₂H₅OH</div>
+            <div style="font-size: 14px; opacity: 0.9;">Этанол</div>
         </div>
-        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
-            <div style="font-size: 28px; font-family: monospace;">C₂H₅OH</div>
-            <div>Этанол</div>
-        </div>
-        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
-            <div style="font-size: 28px; font-family: monospace;">CH₃COOH</div>
-            <div>Сірке қышқылы</div>
+        <div style="background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 10px;">
+            <div style="font-size: 28px; font-family: 'Courier New', monospace; font-weight: bold;">CH₃COOH</div>
+            <div style="font-size: 14px; opacity: 0.9;">Сірке қышқылы</div>
         </div>
     </div>
-    <p style="margin-top: 20px; opacity: 0.9;">19 сабақ | 190 сұрақ | Интерактивті анимация</p>
+    <p style="margin-top: 15px; opacity: 0.8; font-size: 14px;">
+        Интерактивті химиялық анимация | Пробиркалар араласады | Нақты формулалар
+    </p>
 </div>
 """, unsafe_allow_html=True)
+
+# Дополнительная информация
+with st.expander("ℹ️ Анимация туралы ақпарат"):
+    st.write("""
+    **Бұл анимацияда:**
+    1. **3 пробирка** лабораториялық столда
+    2. **Пробиркалар қозғалады** және араласады
+    3. **Сұйықтықтар араласады** орталық пробиркаға
+    4. **Көпіршіктер пайда болады** реакция кезінде
+    5. **Химиялық формулалар** өзгереді
+    6. **Әр сабақтың өзіндік түсі** бар
+    
+    **Басқару:**
+    - **Реакцияны бастау** - пробиркаларды араластыру
+    - **Пузырьки түсіру** - көпіршіктер қосу
+    - **Түстерді өзгерту** - әр сабақтың түсіне ауысу
+    
+    Анимация әр 8 секунд сайын автоматты түрде қайталанады.
+    """)
+
+# Добавляем PIL для ImageDraw
+try:
+    from PIL import ImageDraw
+except ImportError:
+    import subprocess
+    import sys
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "Pillow"])
+    from PIL import ImageDraw
