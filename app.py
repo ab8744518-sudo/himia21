@@ -1,139 +1,73 @@
-def interactive_tubes(reaction_text, color):
-    html_code = f"""
-    <html>
-    <head>
-    <style>
-    .container {{
-        text-align: center;
-        width: 100%;
-    }}
+import streamlit as st
 
-    .tubes {{
+# Әр сабаққа өз түсі (19 сабақ)
+lesson_colors = {
+    1: ("#00c8ff", "#00c8ff", "#9d00ff"),   # Алкандар
+    2: ("#00ff7f", "#00ff7f", "#1e90ff"),   # Алкендер
+    3: ("#ffd700", "#ffd700", "#ff4500"),   # Алкиндер
+    4: ("#87cefa", "#87cefa", "#4682b4"),   # Спирттер
+    5: ("#ff69b4", "#ff69b4", "#8b008b"),   # Фенолдар
+    6: ("#ffa500", "#ffa500", "#ff0000"),   # Альдегидтер
+    7: ("#adff2f", "#adff2f", "#006400"),   # Кетондар
+    8: ("#40e0d0", "#40e0d0", "#00008b"),   # Көмірсутектер салыстыру
+    9: ("#ffdead", "#ffdead", "#cd853f"),   # Карбон қышқылдары
+    10: ("#f0e68c", "#f0e68c", "#daa520"),  # Эфирлер
+    11: ("#dda0dd", "#dda0dd", "#800080"),  # Аминдар
+    12: ("#98fb98", "#98fb98", "#228b22"),  # Аминқышқылдар
+    13: ("#afeeee", "#afeeee", "#2f4f4f"),  # Галогентуындылар
+    14: ("#fffacd", "#fffacd", "#b8860b"),  # Нитросоединениялар
+    15: ("#e6e6fa", "#e6e6fa", "#483d8b"),  # Сульфокислоталар
+    16: ("#ffb6c1", "#ffb6c1", "#dc143c"),  # Тотығу
+    17: ("#90ee90", "#90ee90", "#006400"),  # Қосылу
+    18: ("#add8e6", "#add8e6", "#000080"),  # Ауыстыру
+    19: ("#ff6347", "#ff6347", "#8b0000"),  # Полимерлеу
+}
+
+def show_tubes(lesson_id):
+    left, right, center = lesson_colors.get(lesson_id, ("#00c8ff","#00c8ff","#9d00ff"))
+
+    st.markdown(f"""
+    <style>
+    .lab-container {{
         display: flex;
         justify-content: center;
-        gap: 80px;
-        margin-bottom: 20px;
-        align-items: flex-end;
+        align-items: center;
+        gap: 120px;
+        margin: 40px 0;
     }}
 
-    .tube {{
-        width: 55px;
+    .test-tube {{
+        width: 60px;
         height: 180px;
-        border: 3px solid #222;
-        border-radius: 0 0 22px 22px;
-        background: linear-gradient(to top, #b3e5fc 0%, #e3f2fd 70%);
+        border: 3px solid white;
+        border-radius: 0 0 20px 20px;
         position: relative;
+        background: rgba(255,255,255,0.1);
         overflow: hidden;
-        box-shadow: inset 0px 0px 8px rgba(0,0,0,0.2);
-        transition: transform 1s;
     }}
 
-    .center {{
-        background: linear-gradient(to top, #ffcc80 0%, #fff3e0 70%);
-        transition: background 1.5s;
-    }}
-
-    /* Молекулалар (кішкентай шарлар) */
-    .molecule {{
+    .liquid {{
         position: absolute;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: rgba(0, 0, 0, 0.6);
-        animation: float 2.5s infinite ease-in-out;
+        bottom: 0;
+        width: 100%;
+        height: 60%;
+        animation: pour 2s infinite ease-in-out;
     }}
 
-    .m1 {{ left: 15px; top: 90px; animation-delay: 0s; }}
-    .m2 {{ left: 30px; top: 60px; animation-delay: 0.5s; }}
-    .m3 {{ left: 20px; top: 120px; animation-delay: 1s; }}
-    .m4 {{ left: 25px; top: 40px; animation-delay: 1.5s; }}
+    .left .liquid {{ background: {left}; animation-delay: 0s; }}
+    .right .liquid {{ background: {right}; animation-delay: 1s; }}
+    .center .liquid {{ background: {center}; height: 30%; }}
 
-    @keyframes float {{
-        0% {{ transform: translateY(0); opacity: 0.6; }}
-        50% {{ transform: translateY(-12px); opacity: 1; }}
-        100% {{ transform: translateY(0); opacity: 0.6; }}
-    }}
-
-    .pour-left {{ transform: rotate(22deg) translateX(12px); }}
-    .pour-right {{ transform: rotate(-22deg) translateX(-12px); }}
-
-    .buttons {{
-        margin-top: 10px;
-    }}
-
-    button {{
-        padding: 10px 16px;
-        font-size: 16px;
-        border-radius: 10px;
-        border: none;
-        background: #1976d2;
-        color: white;
-        cursor: pointer;
-        margin: 5px;
-    }}
-
-    button:hover {{ background: #0d47a1; }}
-
-    .result {{
-        padding: 15px;
-        border-radius: 12px;
-        background: {color};
-        font-size: 20px;
-        font-weight: bold;
-        margin-top: 15px;
-        display: none;
-        max-width: 700px;
-        margin-left: auto;
-        margin-right: auto;
+    @keyframes pour {{
+        0% {{ height: 60%; }}
+        50% {{ height: 10%; }}
+        100% {{ height: 60%; }}
     }}
     </style>
-    </head>
 
-    <body>
-    <div class="container">
-
-        <h3>🧪 Виртуалды реакция моделі</h3>
-
-        <div class="tubes">
-            <div id="left" class="tube">
-                <div class="molecule m1"></div>
-                <div class="molecule m2"></div>
-            </div>
-
-            <div id="center" class="tube center">
-                <div class="molecule m3"></div>
-                <div class="molecule m4"></div>
-            </div>
-
-            <div id="right" class="tube">
-                <div class="molecule m1"></div>
-                <div class="molecule m2"></div>
-            </div>
-        </div>
-
-        <div class="buttons">
-            <button onclick="pour()">▶️ Құюды бастау</button>
-            <button onclick="showResult()">🔬 Реакцияны көрсету</button>
-        </div>
-
-        <div id="res" class="result">{reaction_text}</div>
-
+    <div class="lab-container">
+      <div class="test-tube left"><div class="liquid"></div></div>
+      <div class="test-tube center"><div class="liquid"></div></div>
+      <div class="test-tube right"><div class="liquid"></div></div>
     </div>
-
-    <script>
-    function pour() {{
-        document.getElementById("left").classList.toggle("pour-left");
-        document.getElementById("right").classList.toggle("pour-right");
-    }}
-
-    function showResult() {{
-        document.getElementById("center").style.background =
-            "linear-gradient(to top, {color} 0%, #ffffff 70%)";
-
-        document.getElementById("res").style.display = "block";
-    }}
-    </script>
-    </body>
-    </html>
-    """
-    components.html(html_code, height=420)
+    """, unsafe_allow_html=True)
